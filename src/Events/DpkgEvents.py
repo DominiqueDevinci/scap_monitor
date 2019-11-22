@@ -5,6 +5,12 @@ import subprocess
 from gi.repository import Notify
 from threading import Timer
 
+
+'''
+FIXME: This class is not really proper even it's works.*
+For instance, with an update which take time, the listeners are triggered 2x.
+'''
+
 class DpkgEvents:
     def __init__(self):
         '''
@@ -36,6 +42,7 @@ class DpkgEvents:
         self.observer.schedule(self.event_handler, "/var/lib/dpkg", recursive=False)
         
     def _on_modified(self, event):
+        print("modified ...")
         if not self.delaying:
             self.delaying = True
             t = Timer(10, self._trigger_listeners, [["any"]])
