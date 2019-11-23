@@ -5,6 +5,7 @@ import subprocess
 from gi.repository import Notify
 from threading import Timer
 from pprint import pprint
+import sys
 
 
 ''' the design of this program plan to be able to process a watchdog_pattern
@@ -16,7 +17,7 @@ def compile_watchdog_pattern(orig_pattern, debug=False):
     pattern=pattern.replace('*', '(.+)')
     
     if debug:
-        print("Come from watchdog pattern {0} to regex : {1}".format(orig_pattern, pattern))
+        print("Convert from watchdog pattern {0} to regex : {1}".format(orig_pattern, pattern))
     
     return re.compile(pattern)
 
@@ -27,6 +28,12 @@ class FilePattern(object):
         - watchdog_pattern (like /home/foo/*.txt )
         - regex  (contains the equivalent pre-compiled regex, here /home/foo/(
     '''
+    def __eq__(self, other):
+        return self.watchdog_pattern == other.watchdog_pattern
+
+    def __hash__(self):
+        return self.watchdog_pattern.__hash__()
+
     pass
 
 class FileEvents:
@@ -53,20 +60,31 @@ class FileEvents:
         return pattern.watchdog_pattern 
         
     def _on_event(self, event):
-        pprint(event)
         directory = os.path.dirname(event.src_path)
-        print(event.src_path)
         for pattern in self.listeners[directory]:
             if pattern.regex.match(event.src_path):
-                self.listeners[directory][pattern](event)
+                for callback in self.listeners[directory][pattern]:
+                    callback(event)
 
     def start(self):
         for o in self.observers:
             o.start()
         
+    def add_file_listener(self, filepath, callback):
+        self.add_file_pattern_listener(os.path.dirname(filepath),
+                    os.path.basename(filepath), callback)
 
-    def add_file_listener(self, callback, directory, file_pattern):
-        directory = os.path.dirname(directory)  # format dir (remove end / for instance)
+    def add_file_pattern_listener(self, directory, file_pattern, callback):
+        
+        if directory.endswith('/'):
+            directory=directory[:-1]
+            
+        if not os.path.isdir(directory):
+            ''' FIXME '''
+            sys.stderr.write("[warning] directory {0} doesn't exists and can't monitored\n"
+                             .format(directory))
+            return
+            
         if directory not in self.listeners:
             self.listeners[directory]=dict()
             self.observers[directory]=None  # init the observer to null
@@ -75,8 +93,11 @@ class FileEvents:
        
         pattern.regex=compile_watchdog_pattern(directory+'/'+file_pattern, self.debug)
         pattern.watchdog_pattern=directory+'/'+file_pattern
-        
-        self.listeners[directory][pattern]=callback
+       
+        if self.listeners[directory].get(pattern) is None:
+            self.listeners[directory][pattern]=[callback]
+        else:
+            self.listeners[directory][pattern].append(callback)
             
     def start(self):
         nb_listeners = 0

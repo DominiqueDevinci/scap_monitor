@@ -4,6 +4,7 @@ from watchdog.events import PatternMatchingEventHandler
 import subprocess
 from Events.DpkgEvents import DpkgEvents
 from Events.FileEvents import FileEvents
+from RuleParser.BindXCCDF import bind_xccdf_profile
 
 import gi
 gi.require_version('Notify', '0.7')
@@ -19,14 +20,17 @@ def handler_dump(event):
     Notify.Notification.new("File {0} modified !".format(event.src_path)).show()
     pass
     
-fileEvents = FileEvents(debug=True)
-fileEvents.add_file_listener(handler_dump, "/home/dom/test/", "*.txt")
-fileEvents.add_file_listener(handler_dump, "/home/dom/test/", "test.xml")
-fileEvents.start()
+#fileEvents = FileEvents(debug=True)
+#fileEvents.add_file_listener(handler_dump, "/home/dom/test/", "*.txt")
+#fileEvents.add_file_listener(handler_dump, "/home/dom/test/", "test.xml")
+#fileEvents.start()
 
 dpkgEvents = DpkgEvents()
 dpkgEvents.add_listener(handler)
 dpkgEvents.start()
+
+bind_xccdf_profile('/home/dom/content/build/ssg-ubuntu1804-xccdf.xml',
+            'anssi_np_nt28_restrictive')
 
 try:
     while True:

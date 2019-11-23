@@ -19,6 +19,16 @@ def fetch_benchmark_profile(benchmark_path, profile_name):
     '''
     oval_objects_relationships = {} 
     
+    '''
+    associate object ids to object instances
+    we don't use directly objects insance during the parsing because
+    the underlying SWIG api doesn't provide unique instance for each id
+
+    so we use id for ensuring unicity during the parsing and then
+    relink these id to an equivalent object instance
+    '''    
+    oval_objects = {}
+    
     policy_model = benchmark_comp['policy_model']
     benchmark = policy_model.get_benchmark()
     
@@ -26,7 +36,7 @@ def fetch_benchmark_profile(benchmark_path, profile_name):
         if model.object == 'oval_definition_model':
             for defin in model.get_definitions():
                 fetch_oval_objects_relationships(defin.get_criteria(), oval_objects_relationships, [defin.get_id()])
-                
+                oval_objects.update(fetch_oval_objects(model))
 
     profile = None
     for p in benchmark.get_profiles():
@@ -54,19 +64,23 @@ def fetch_benchmark_profile(benchmark_path, profile_name):
 
     objects_rules_relationships = {}
     for obj_id, linked_defs in oval_objects_relationships.items():
-        objects_rules_relationships[obj_id]=set([])
-        for defin in linked_defs:
-            if defin not in xccdf_def_relationships:
-                print_debug("def {0} isn't used by this benchmark profile.".format(defin))
-            else:
-                objects_rules_relationships[obj_id].update(xccdf_def_relationships[defin])
-        
-        if len(objects_rules_relationships[obj_id]) == 0:
-            del objects_rules_relationships[obj_id]
-            print_debug("obj {0} isn't used by this benchmark profile".format(obj_id))
+        obj = oval_objects.get(obj_id)
 
-    print("monitoring objects: {0}".format(len(objects_rules_relationships)))
+        if obj is not None: 
+            objects_rules_relationships[obj_id]={'instance': obj, 'rules': set([])}
+            for defin in linked_defs:
+                if defin not in xccdf_def_relationships:
+                    print_debug("def {0} isn't used by this benchmark profile.".format(defin))
+                else:
+                    objects_rules_relationships[obj_id]['rules'].update(xccdf_def_relationships[defin])
+            
+            if len(objects_rules_relationships[obj_id]['rules']) == 0:
+                del objects_rules_relationships[obj_id]
+                print_debug("obj {0} isn't used by this benchmark profile".format(obj_id))
+        else:
+            sys.stderr.write("[warning] no instance of object {0} found !".format(obj_id))
 
+    return objects_rules_relationships
 
 ''' associate each def to the related rules in order to know which
 rule result can change if this result of this single test changes.
@@ -131,6 +145,11 @@ def fetch_oval_objects_relationships(crit_node, oval_objects_relationships, tmp_
 
     
 def fetch_oval_objects(oval_model):
+    objects={}
+
     for obj in oval_model.get_objects():
-        print(obj.get_id())
+        if objects.get(obj.get_id()) is None:
+            objects[obj.get_id()]=obj
+
+    return objects
 
