@@ -4,7 +4,8 @@ from Events.FileEvents import FileEvents
 import openscap_api as oscap
 import sys
 
-
+#TODO factorize and organize by classes ...
+oval_session=None
 
 def classify_objects(obj):
 
@@ -30,7 +31,9 @@ def xccdf_rule_callback(event, rules):
 
 
 def bind_text_file_content_54(objects):
-
+    '''
+        TODO: implement the case where the filepath entity have the operator "match"
+    '''
     fileEvents = FileEvents()
     
     for obj_id, obj_data in objects.items():
@@ -45,6 +48,12 @@ def bind_text_file_content_54(objects):
     fileEvents.start()
 
 def bind_xccdf_profile(xccdf_path, profile):
+    
+    print("loading xccdf session ...")
+    xccdf_session=oscap.xccdf.session_new_from_source(oscap.common.source_new_from_file(xccdf_path))
+    print("xccdf session loaded ! ")
+
+    
     objects = fetch_benchmark_profile(xccdf_path, profile)
     bind_text_file_content_54(objects)
 

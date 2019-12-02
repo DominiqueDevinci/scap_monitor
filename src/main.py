@@ -16,15 +16,7 @@ def handler(args):
     print("handler")
     Notify.Notification.new("Modification happens in package list !").show()
     
-def handler_dump(event):
-    Notify.Notification.new("File {0} modified !".format(event.src_path)).show()
-    pass
     
-#fileEvents = FileEvents(debug=True)
-#fileEvents.add_file_listener(handler_dump, "/home/dom/test/", "*.txt")
-#fileEvents.add_file_listener(handler_dump, "/home/dom/test/", "test.xml")
-#fileEvents.start()
-
 dpkgEvents = DpkgEvents()
 dpkgEvents.add_listener(handler)
 dpkgEvents.start()
