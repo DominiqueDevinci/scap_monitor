@@ -6,7 +6,7 @@ import sys
 
 #TODO factorize and organize by classes ...
 oval_session=None
-
+xccdf_session=None
 def classify_objects(obj):
 
     objs = {}
@@ -26,9 +26,12 @@ def classify_objects(obj):
     return objs
 
 def xccdf_rule_callback(event, rules):
+    global xccdf_session 
     for rule in rules:
         print("re-evaluation required for rule {0}".format(rule))
-
+        xccdf_session.set_rule(rule)
+        xccdf_session.evaluate()
+        print(xccdf_session.get_xccdf_policy().get_results())
 
 def bind_text_file_content_54(objects):
     '''
@@ -47,13 +50,21 @@ def bind_text_file_content_54(objects):
 
     fileEvents.start()
 
-def bind_xccdf_profile(xccdf_path, profile):
+def bind_xccdf_profile(xccdf_path, profile, cpe=None):
+    global xccdf_session
     
-    print("loading xccdf session ...")
-    xccdf_session=oscap.xccdf.session_new_from_source(oscap.common.source_new_from_file(xccdf_path))
-    print("xccdf session loaded ! ")
+    xccdf_session=oscap.xccdf.session_new(xccdf_path)
+    if cpe is not None:
+        print("Loading user CPE {0} ...".format(cpe))
+        xccdf_session.set_user_cpe(cpe)
 
-    
+    print("Loading xccdf session ...")
+    xccdf_session.load()
+    xccdf_session.load_oval()
+    xccdf_session.load_cpe()
+
+    xccdf_session.set_profile_id(profile)
+
     objects = fetch_benchmark_profile(xccdf_path, profile)
     bind_text_file_content_54(objects)
 

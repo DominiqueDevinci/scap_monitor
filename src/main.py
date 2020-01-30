@@ -22,7 +22,7 @@ dpkgEvents.add_listener(handler)
 dpkgEvents.start()
 
 bind_xccdf_profile('/home/dom/content/build/ssg-ubuntu1804-xccdf.xml',
-            'anssi_np_nt28_restrictive')
+            'anssi_np_nt28_restrictive', '/home/dom/content/build/ssg-ubuntu1804-cpe-dictionary.xml')
 
 try:
     while True:
