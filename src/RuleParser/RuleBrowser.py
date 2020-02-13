@@ -53,20 +53,25 @@ def fetch_benchmark_profile(benchmark_path, profile_name):
         
     policy = oscap.xccdf.policy_new(policy_model, profile)
     
-    '''for s in profile.get_selects():
-        pprint(s.get_item())
-    '''
+    selected_rules=list()
+    for r in policy.get_selected_rules():
+        selected_rules.append(r.get_item())
+        
+    pprint(selected_rules)
+    
+    print("{0} rules selected to be monitored ...".format(len(selected_rules)))
 
     xccdf_def_relationships={}
     for c in benchmark.get_content():
-        parse_xccdf_ovdef(c, xccdf_def_relationships)
+        pprint(selected_rules)
+        print("parsing ...")
+        parse_xccdf_ovdef(c, selected_rules, xccdf_def_relationships)
     
-
     objects_rules_relationships = {}
     for obj_id, linked_defs in oval_objects_relationships.items():
         obj = oval_objects.get(obj_id)
 
-        if obj is not None: 
+        if obj is not None:
             objects_rules_relationships[obj_id]={'instance': obj, 'rules': set([])}
             for defin in linked_defs:
                 if defin not in xccdf_def_relationships:
@@ -88,21 +93,29 @@ rule result can change if this result of this single test changes.
 Ex: {oval1: [rule_1, rule_2, rule_3]}
 It needs to recursively parse items.
 '''
-def parse_xccdf_ovdef(item, relationships={}):
+def parse_xccdf_ovdef(item, selected_rules, relationships={}):
     if item.get_type() == oscap.xccdf.XCCDF_GROUP:
         for c in item.to_group().get_content():
-            parse_xccdf_ovdef(c, relationships)
+            parse_xccdf_ovdef(c, selected_rules, relationships)
         
     elif item.get_type() == oscap.xccdf.XCCDF_RULE:    
         rule = item.to_rule()
         
         ''' TODO: implement multichecks and complex checks ''' 
-        for check in rule.get_checks():
-            for check_ref in check.get_content_refs():
-                ovdef_name=check_ref.get_name()
-                if relationships.get(ovdef_name) is None:
-                    relationships[ovdef_name]=set([])
-                relationships[ovdef_name].add(rule.get_id())
+        print(rule.get_id())
+        pprint(selected_rules)
+        if rule.get_id() in selected_rules:
+            print("Analysing rule {0} ...".format(rule.get_id()))
+            
+            for check in rule.get_checks():
+                for check_ref in check.get_content_refs():
+                    ovdef_name=check_ref.get_name()
+                    if relationships.get(ovdef_name) is None:
+                        relationships[ovdef_name]=set([])
+                    relationships[ovdef_name].add(rule.get_id())
+        else:
+            print("Rule {0} skipped because not selected by current profile"
+                  .format(rule.get_id()))
     else:
         pprint(oscap.xccdf.introspect_constants(item.get_type()))
 
