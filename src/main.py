@@ -19,22 +19,38 @@ def handler(args):
     Notify.Notification.new("Modification happens in package list !").show()
     
 
-def handler_xccdf(rule, rs):
-    if rs == oscap.xccdf.XCCDF_RESULT_PASS:
-        Notify.Notification.new("Rule {0} have been triggered but is PASSED.".format(rule)).show()
-    elif rs == oscap.xccdf.XCCDF_RESULT_FAIL:
-        Notify.Notification.new("!!! Rule {0} have been triggered and is FAILED.".format(rule)).show()
-    else:
-        Notify.Notification.new("! Rule {0} have been triggered and cannot be evaluated !".format(rule)).show()
-    
-dpkgEvents = DpkgEvents()
-dpkgEvents.add_listener(handler)
-dpkgEvents.start()
+security_event_notif = Notify.Notification.new(
+    'SCAP Monitor: new security events !',
+    "",
+    "dialog-danger"
+)
+security_event_notif.set_timeout(3000)
+se_notif_body='' # cache for notification body
 
+def handler_xccdf(rule, rs):
+    global se_notif_body, security_event_notif
+    
+    if rs == oscap.xccdf.XCCDF_RESULT_PASS:
+        se_notif_body+="\n{0}: <i>PASSED</i>.".format(rule);
+    elif rs == oscap.xccdf.XCCDF_RESULT_FAIL:
+        se_notif_body+="\n{0}: <b>FAILED</b>.".format(rule);
+    else:
+       se_notif_body+="\n{0}: cannot be evaluated.".format(rule);
+       
+    security_event_notif.update(
+        'SCAP Monitor: new security events !',
+        se_notif_body,
+        "dialog-warning"
+    )
+    security_event_notif.show()
+    
 bind_xccdf_profile('/home/dom/content/build/ssg-ubuntu1804-xccdf.xml',
             'anssi_np_nt28_restrictive', handler_xccdf, '/home/dom/content/build/ssg-ubuntu1804-cpe-dictionary.xml')
 
-Notify.Notification.new("Listening events related to Scap Security Guide ... ").show()
+
+dpkgEvents = DpkgEvents()
+dpkgEvents.add_listener(handler)
+dpkgEvents.start()
 
 try:
     while True:

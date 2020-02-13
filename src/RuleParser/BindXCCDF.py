@@ -28,6 +28,7 @@ def classify_objects(obj):
 
 def xccdf_rule_callback(event, rules, handler):
     global xccdf_session 
+    xccdf_session.load()
     for rule in rules:
         print("re-evaluation required for rule {0}".format(rule))
         xccdf_session.set_rule(rule)
