@@ -5,9 +5,8 @@ from utils import result2str
 import openscap_api as oscap
 import sys
 from Dispatcher.Syslog import Syslog
-import syslog as syslog
 
-sysl = Syslog.getInstance()
+syslog = Syslog.getInstance()
 
 #TODO factorize and organize by classes ...
 oval_session=None
@@ -34,7 +33,7 @@ def xccdf_rule_callback(event, rules, handler):
     global xccdf_session
     xccdf_session.load()
     for rule in rules:
-        sysl.syslog(syslog.LOG_INFO, "re-evaluation required for rule {0}".format(rule))
+        syslog.log(Syslog.LOG_INFO, "re-evaluation required for rule {0}".format(rule))
         xccdf_session.set_rule(rule)
         xccdf_session.evaluate()
         new_rs = xccdf_session.get_rule_result(rule)
@@ -63,15 +62,15 @@ def bind_xccdf_profile(xccdf_path, profile, handler, cpe=None):
 
     xccdf_session=oscap.xccdf.session_new(xccdf_path)
     if cpe is not None:
-        sysl.syslog(syslog.LOG_INFO, "Loading user CPE {0} ...".format(cpe))
+        syslog.log(Syslog.LOG_INFO, "Loading user CPE {0} ...".format(cpe))
         xccdf_session.set_user_cpe(cpe)
 
-    sysl.syslog(syslog.LOG_INFO, "Loading xccdf session ...")
+    syslog.log(Syslog.LOG_INFO, "Loading xccdf session ...")
     xccdf_session.load()
     xccdf_session.load_oval()
     xccdf_session.load_cpe()
 
-    sysl.syslog(syslog.LOG_INFO, "Using profile {0} ...".format(profile))
+    syslog.log(Syslog.LOG_INFO, "Using profile {0} ...".format(profile))
     xccdf_session.set_profile_id(profile)
 
     objects = fetch_benchmark_profile(xccdf_path, profile)

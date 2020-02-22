@@ -1,62 +1,77 @@
 import time
 import openscap_api as oscap
+import subprocess
+import argparse
+
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
-import subprocess
 from Events.DpkgEvents import DpkgEvents
 from Events.FileEvents import FileEvents
 from RuleParser.BindXCCDF import bind_xccdf_profile
 from Dispatcher.Syslog import Syslog
-import syslog as syslog
+from Dispatcher.DesktopNotif import DesktopNotif
 
-sysl = Syslog.getInstance()
+syslog = Syslog.getInstance()
+desktop = DesktopNotif.getInstance()
 
-import gi
-gi.require_version('Notify', '0.7')
-from gi.repository import Notify
+parser = argparse.ArgumentParser()
+parser.add_argument("-v", "--verbosity", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ALERT'],
+        help="Verbosity level, corresponding to syslog priority.", default="INFO")
 
-Notify.init("SCAP Watcher")
+parser.add_argument("-n", "--desktop-notify", action="store_true",
+                    help="Show desktop notifs with noticeable events .")
 
-def handler(args):
+parser.add_argument("--dpkg", action="store_true",
+                    help="Show desktop notifs with noticeable events .")
+
+args = parser.parse_args()
+
+
+''' Manage verbosity '''
+if args.verbosity == "DEBUG":
+    syslog.set_verbosity_policy(syslog.LOG_DEBUG)
+elif args.verbosity == "WARGNING":
+    syslog.set_verbosity_policy(syslog.LOG_WARNING)
+elif args.verbosity == "ALERT":
+    syslog.set_verbosity_policy(syslog.LOG_ALERT)
+
+desktop.set_display_policy(args.desktop_notify)
+
+syslog.log(syslog.LOG_INFO, "SCAP monitor is starting, verbosity = {0}".format(args.verbosity))
+
+'''
+     ********       EVENT HANDLERS           ********
+'''
+
+def handler_dpkg(args):
     print("handler")
-    Notify.Notification.new("Modification happens in package list !").show()
-
-
-security_event_notif = Notify.Notification.new(
-    'SCAP Monitor: new security events !',
-    "",
-    "dialog-danger"
-)
-security_event_notif.set_timeout(3000)
-se_notif_body='' # cache for notification body
 
 def handler_xccdf(rule, rs):
-    global se_notif_body, security_event_notif, syslog
-
     if rs == oscap.xccdf.XCCDF_RESULT_PASS:
-        sysl.syslog(syslog.LOG_INFO, "Rule {0} is evaluated as PASSED.".format(rule))
-        se_notif_body+="\n{0}: <i>PASSED</i>.".format(rule)
+        syslog.log(syslog.LOG_INFO, "Rule {0} is evaluated as PASSED.".format(rule))
+        desktop.send_message("{0}: <i>PASSED</i>.".format(rule))
     elif rs == oscap.xccdf.XCCDF_RESULT_FAIL:
-        sysl.syslog(syslog.LOG_ALERT, "Rule {0} is evaluated as FAILED !".format(rule))
-        se_notif_body+="\n{0}: <b>FAILED</b>.".format(rule);
+        syslog.log(syslog.LOG_ALERT, "Rule {0} is evaluated as FAILED !".format(rule))
+        desktop.send_message("{0}: <b>FAILED</b>.".format(rule))
     else:
-        sysl.syslog(syslog.LOG_WARNING, "Rule {0} is evaluated as FAILED !".format(rule))
-        se_notif_body+="\n{0}: cannot be evaluated.".format(rule);
+        syslog.log(syslog.LOG_WARNING, "Rule {0} is evaluated as FAILED !".format(rule))
+        desktop.send_message("{0}: cannot be evaluated.".format(rule))
 
-    security_event_notif.update(
-        'SCAP Monitor: new security events !',
-        se_notif_body,
-        "dialog-warning"
-    )
-    security_event_notif.show()
 
+'''
+     ********       BINDING WITH EVENT WATCHERS          ********
+'''
+
+# Bind to an XCCDF Benchmark
 bind_xccdf_profile('/home/dom/content/build/ssg-ubuntu1804-xccdf.xml',
             'anssi_np_nt28_restrictive', handler_xccdf, '/home/dom/content/build/ssg-ubuntu1804-cpe-dictionary.xml')
 
+# Listen for dpkg events.
+if args.dpkg is True:
+    dpkgEvents = DpkgEvents()
+    dpkgEvents.add_listener(handler)
+    dpkgEvents.start()
 
-dpkgEvents = DpkgEvents()
-dpkgEvents.add_listener(handler)
-dpkgEvents.start()
 
 try:
     while True:

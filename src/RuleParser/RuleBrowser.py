@@ -1,18 +1,10 @@
 import openscap_api as oscap
-from pprint import pprint
 import sys
 from Dispatcher.Syslog import Syslog
-import syslog as syslog
 
-sysl = Syslog.getInstance()
+syslog = Syslog.getInstance()
 
 ''' TODO: monitor potential oval variables changes '''
-debug = False
-
-def print_debug(pstr):
-    global debug
-    if debug:
-        sys.stderr.write("[debug] {0}\n".format(pstr))
 
 def fetch_benchmark_profile(benchmark_path, profile_name):
     benchmark_comp = oscap.xccdf.init(benchmark_path)
@@ -53,7 +45,7 @@ def fetch_benchmark_profile(benchmark_path, profile_name):
         raise Exception("profile {0} not exists.\nAvailable profiles: ".format(profile_name))
 
     else:
-        sysl.syslog(syslog.LOG_DEBUG, "Profile {0} found.".format(profile_name))
+        syslog.log(Syslog.LOG_DEBUG, "Profile {0} found.".format(profile_name))
 
     policy = oscap.xccdf.policy_new(policy_model, profile)
 
@@ -61,9 +53,7 @@ def fetch_benchmark_profile(benchmark_path, profile_name):
     for r in policy.get_selected_rules():
         selected_rules.append(r.get_item())
 
-    pprint(selected_rules)
-
-    sysl.syslog(syslog.LOG_INFO, "{0} rules selected to be monitored ...".format(len(selected_rules)))
+    syslog.log(Syslog.LOG_INFO, "{0} rules selected to be monitored ...".format(len(selected_rules)))
 
     xccdf_def_relationships={}
     for c in benchmark.get_content():
@@ -77,15 +67,15 @@ def fetch_benchmark_profile(benchmark_path, profile_name):
             objects_rules_relationships[obj_id]={'instance': obj, 'rules': set([])}
             for defin in linked_defs:
                 if defin not in xccdf_def_relationships:
-                    sysl.syslog(syslog.LOG_DEBUG, "def {0} isn't used by this benchmark profile.".format(defin))
+                    syslog.log(Syslog.LOG_DEBUG, "def {0} isn't used by this benchmark profile.".format(defin))
                 else:
                     objects_rules_relationships[obj_id]['rules'].update(xccdf_def_relationships[defin])
 
             if len(objects_rules_relationships[obj_id]['rules']) == 0:
                 del objects_rules_relationships[obj_id]
-                sysl.syslog(syslog.LOG_DEBUG, "obj {0} isn't used by this benchmark profile".format(obj_id))
+                syslog.log(Syslog.LOG_DEBUG, "obj {0} isn't used by this benchmark profile".format(obj_id))
         else:
-            sysl.syslog(syslog.LOG_NOTICE, "no instance of object {0} found !".format(obj_id))
+            syslog.log(Syslog.LOG_NOTICE, "no instance of object {0} found !".format(obj_id))
 
     return objects_rules_relationships
 
@@ -104,10 +94,8 @@ def parse_xccdf_ovdef(item, selected_rules, relationships={}):
         rule = item.to_rule()
 
         ''' TODO: implement multichecks and complex checks '''
-        print(rule.get_id())
-        pprint(selected_rules)
         if rule.get_id() in selected_rules:
-            sysl.syslog(syslog.LOG_DEBUG, "Analysing dependencies of rule {0} ..."
+            syslog.log(Syslog.LOG_DEBUG, "Analysing dependencies of rule {0} ..."
                                            .format(rule.get_id()))
 
             for check in rule.get_checks():
@@ -117,10 +105,10 @@ def parse_xccdf_ovdef(item, selected_rules, relationships={}):
                         relationships[ovdef_name]=set([])
                     relationships[ovdef_name].add(rule.get_id())
         else:
-            sysl.syslog(syslog.LOG_DEBUG, "Rule {0} skipped because not selected by current profile"
+            syslog.log(Syslog.LOG_DEBUG, "Rule {0} skipped because not selected by current profile"
                   .format(rule.get_id()))
     else:
-        sysl.syslog(syslog.LOG_NOTICE, "Item type {0} is not supported !".format(item.get_type()))
+        syslog.log(Syslog.LOG_NOTICE, "Item type {0} is not supported !".format(item.get_type()))
 
 
 '''
@@ -146,17 +134,16 @@ def fetch_oval_objects_relationships(crit_node, oval_objects_relationships, tmp_
         # in the list of linked defs
         ext_def_id = crit_node.get_definition().get_id()
         tmp_relationships.append(ext_def_id)
-        #print("fetching extended relationship ..")
+
+        # fetching extended relationship ...
         fetch_oval_objects_relationships(crit_node.get_definition().get_criteria(),
             oval_objects_relationships, tmp_relationships)
 
         # remove this extended relationship when the recursion on this def ended.
         tmp_relationships.remove(ext_def_id)
 
-        #print("end of extended definition fetching")
-
     else:
-        sysl.syslog(syslog.LOG_NOTICE, "Unknown criteria_node_type ({0}) in definition {1}\,"
+        syslog.log(Syslog.LOG_NOTICE, "Unknown criteria_node_type ({0}) in definition {1}\,"
                          .format(crit_node.get_type(), crit_node.get_definition().get_id()))
 
 
