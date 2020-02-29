@@ -1,12 +1,13 @@
 from RuleParser.RuleBrowser import fetch_benchmark_profile
-from pprint import pprint
 from Events.FileEvents import FileEvents
 from utils import result2str
 import openscap_api as oscap
 import sys
 from Dispatcher.Syslog import Syslog
+from Dispatcher.DesktopNotif import DesktopNotif
 
 syslog = Syslog.getInstance()
+desktop = DesktopNotif.getInstance()
 
 #TODO factorize and organize by classes ...
 oval_session=None
@@ -60,12 +61,12 @@ def bind_text_file_content_54(objects, handler):
 def bind_xccdf_profile(xccdf_path, profile, handler, cpe=None):
     global xccdf_session
 
+    syslog.log(Syslog.LOG_INFO, "Loading xccdf session {0} ...".format(xccdf_path))
     xccdf_session=oscap.xccdf.session_new(xccdf_path)
     if cpe is not None:
         syslog.log(Syslog.LOG_INFO, "Loading user CPE {0} ...".format(cpe))
         xccdf_session.set_user_cpe(cpe)
 
-    syslog.log(Syslog.LOG_INFO, "Loading xccdf session ...")
     xccdf_session.load()
     xccdf_session.load_oval()
     xccdf_session.load_cpe()
@@ -75,3 +76,5 @@ def bind_xccdf_profile(xccdf_path, profile, handler, cpe=None):
 
     objects = fetch_benchmark_profile(xccdf_path, profile)
     bind_text_file_content_54(objects, handler)
+
+    desktop.send_message("Your system is monitored with profile {0}".format(profile))

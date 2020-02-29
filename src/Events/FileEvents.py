@@ -3,9 +3,10 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 import subprocess
 from threading import Timer
-from pprint import pprint
 import sys
+from Dispatcher.Syslog import Syslog
 
+syslog = Syslog.getInstance()
 
 ''' the design of this program plan to be able to process a watchdog_pattern
      in order to convert it in a proper regex, but for now compile it is sufficient '''
@@ -15,8 +16,7 @@ def compile_watchdog_pattern(orig_pattern, debug=False):
     pattern=pattern.replace('.', '\.')
     pattern=pattern.replace('*', '(.+)')
 
-    if debug:
-        print("Convert from watchdog pattern {0} to regex : {1}".format(orig_pattern, pattern))
+    syslog.log(Syslog.LOG_DEBUG, "Convert from watchdog pattern {0} to regex : {1}".format(orig_pattern, pattern))
 
     return re.compile(pattern)
 
@@ -80,7 +80,7 @@ class FileEvents:
 
         if not os.path.isdir(directory):
             ''' FIXME '''
-            sys.stderr.write("[warning] directory {0} doesn't exists and can't monitored\n"
+            syslog.log(Syslog.LOG_INFO, "Directory {0} doesn't exists and can't monitored\n"
                              .format(directory))
             return
 
@@ -104,7 +104,7 @@ class FileEvents:
             watchdog_patterns = list(map(lambda p: p.watchdog_pattern, patterns.keys()))
             nb_listeners += len(watchdog_patterns)
 
-            print("listening on patterns {0}".format(watchdog_patterns))
+            syslog.log(Syslog.LOG_INFO, "listening on patterns {0}".format(watchdog_patterns))
 
             tmp_handler = PatternMatchingEventHandler(watchdog_patterns, [], False, True)
 
@@ -115,5 +115,5 @@ class FileEvents:
             self.observers[directory].schedule(tmp_handler, directory, recursive=False)
             self.observers[directory].start()
 
-        print("[FileEvents] {0} observers launched monitoring {1} file patterns."
+        syslog.log(Syslog.LOG_INFO, "[FileEvents] {0} observers launched monitoring {1} file patterns."
               .format(len(self.observers.keys()), nb_listeners))

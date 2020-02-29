@@ -20,10 +20,10 @@ try:
     import gi
     gi.require_version('Notify', '0.7')
     from gi.repository import Notify
-    syslog.log(syslog.LOG_DEBUG, "Gtk Libnotify 0.7 is available.")
+    syslog.log(syslog.LOG_INFO, "Gtk Libnotify 0.7 is available.")
     libs['gtk_notify'] = True
 except ImportError:
-    syslog.log(syslog.LOG_DEBUG, "Gtk Libnotify 0.7 is NOT available.")
+    syslog.log(syslog.LOG_INFO, "Gtk Libnotify 0.7 is NOT available.")
 
 
 ''' Main singleton class '''
