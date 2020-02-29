@@ -9,22 +9,23 @@ The abstract methhods must be overriden by the children class, for instance GtkN
 (which use libnotify python API).
 '''
 
+import time, os
 
 ''' Manage import and available libraries '''
 from Dispatcher.Syslog import Syslog
 syslog = Syslog.getInstance()
 
-libs = {'gtk_notify': False}  # availability of notif libraries.
+libs = {'notify2': False}  # availability of notif libraries.
+
+pixbuf_icon = None
 
 try:
-    import gi
-    gi.require_version('Notify', '0.7')
-    from gi.repository import Notify
-    syslog.log(syslog.LOG_INFO, "Gtk Libnotify 0.7 is available.")
-    libs['gtk_notify'] = True
-except ImportError:
-    syslog.log(syslog.LOG_INFO, "Gtk Libnotify 0.7 is NOT available.")
+    import notify2
 
+    syslog.log(syslog.LOG_INFO, "Gtk/Qt notify2 binding is available.")
+    libs['notify2'] = True
+except ImportError:
+    syslog.log(syslog.LOG_INFO, "Gtk/Qt notify2 binding is NOT available.")
 
 ''' Main singleton class '''
 # singleton like class
@@ -43,25 +44,28 @@ class DesktopNotif:
         self.__display = display
 
     def __init__(self):
-      """ Virtually private constructor. """
-      if DesktopNotif.__instance != None:
-          raise Exception("This is a private constructor, you shouldn't call it directly")
-      else:
-          Notify.init("SCAP Monitor")
 
-          self.title = 'SCAP Monitor: security compliance events !'
-          self.icon = 'dialog-danger'
-          self.current_notif_body = ""
+        """ Virtually private constructor. """
+        if DesktopNotif.__instance != None:
+            raise Exception("This is a private constructor, you shouldn't call it directly")
+        else:
+            notify2.init("SCAP Monitor")
 
-          self.current_notif = Notify.Notification.new(
-              self.title,
-              self.current_notif_body,
-              self.icon
-          )
+            self.title = 'SCAP Monitor: security compliance events !'
+            self.message_queue = list()
+            self.current_notif_body = ""
+            self.icon = os.path.dirname(__file__)+"/scap_monitor.ico"
 
-          self.current_notif.set_timeout(5000)  # default timeout is 5sec
+            self.current_notif = notify2.Notification(
+                self.title,
+                self.current_notif_body,
+                self.icon
+            )
 
-          DesktopNotif.__instance = self
+            self.timeout = 5000
+            self.current_notif.set_timeout(5000)  # default timeout is 5ses
+
+            DesktopNotif.__instance = self
 
     def set_title(self, title):
         self.title = title
@@ -73,12 +77,42 @@ class DesktopNotif:
     def set_icon(self, icon):
         self.icon = icon
 
-    def send_message(self, message):
-            self.current_notif_body += "\n" + message
+    def update_msg_queue(self):
+        current_time = time.time()
+        updated = False
 
-            self.current_notif.update(
-                self.title,
-                self.current_notif_body,
-                self.icon
-            )
-            self.current_notif.show()
+        ''' curiously, not all messages are fetched using for msg in self.message_queue
+        so i use indexes but in reverse order to be able to remove them without
+        shifting other indexes. '''
+        for i in range(len(self.message_queue)-1, -1, -1):
+            msg = self.message_queue[i]
+            if msg.expire < current_time:
+                del self.message_queue[i]
+                updated = True
+                
+        return updated
+
+    def send_message(self, message):
+        new_msg = DesktopMessage(message, self.timeout)
+        self.message_queue.append(new_msg)
+        if self.update_msg_queue():
+            self.current_notif_body=""
+            for msg in self.message_queue:
+                self.current_notif_body  += "\n" + msg.message
+        else:
+            self.current_notif_body  += "\n" + new_msg.message
+
+        self.current_notif.update(
+            self.title,
+            self.current_notif_body,
+            self.icon
+        )
+        self.current_notif.show()
+
+''' This class aims to destroy messages after a defined timeout
+because messages are all displayed in the same popup (to avoid spamming)
+'''
+class DesktopMessage:
+    def __init__(self, message, timeout):
+        self.message = message
+        self.expire = time.time() + timeout/1000.  # notify timeout is ms, not sec
