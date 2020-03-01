@@ -10,9 +10,12 @@ from Events.FileEvents import FileEvents
 from RuleParser.BindXCCDF import bind_xccdf_profile
 from Dispatcher.Syslog import Syslog
 from Dispatcher.DesktopNotif import DesktopNotif
+from Persistence.Db import Db
+from utils import initial_scan, load_xccdf_session
 
 syslog = Syslog.getInstance()
 desktop = DesktopNotif.getInstance()
+desktop.set_timeout(10000)  # 10 sec timeout for notifs
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbosity", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ALERT'],
@@ -39,6 +42,7 @@ desktop.set_display_policy(args.desktop_notify)
 
 syslog.log(syslog.LOG_INFO, "SCAP monitor is starting, verbosity = {0}".format(args.verbosity))
 
+
 '''
      ********       EVENT HANDLERS           ********
 '''
@@ -59,12 +63,21 @@ def handler_xccdf(rule, rs):
 
 
 '''
+    Load xccdf session
+'''
+
+xccdf_session = load_xccdf_session('/home/dom/content/build/ssg-ubuntu1804-xccdf.xml',
+            'anssi_np_nt28_restrictive', '/home/dom/content/build/ssg-ubuntu1804-cpe-dictionary.xml')
+
+initial_scan(xccdf_session)
+
+'''
      ********       BINDING WITH EVENT WATCHERS          ********
 '''
 
 # Bind to an XCCDF Benchmark
-bind_xccdf_profile('/home/dom/content/build/ssg-ubuntu1804-xccdf.xml',
-            'anssi_np_nt28_restrictive', handler_xccdf, '/home/dom/content/build/ssg-ubuntu1804-cpe-dictionary.xml')
+bind_xccdf_profile(xccdf_session, '/home/dom/content/build/ssg-ubuntu1804-xccdf.xml',
+                   'anssi_np_nt28_restrictive', handler_xccdf)
 
 # Listen for dpkg events.
 if args.dpkg is True:

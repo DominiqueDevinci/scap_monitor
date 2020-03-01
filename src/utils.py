@@ -1,11 +1,11 @@
 import openscap_api as oscap
+from Dispatcher.Syslog import Syslog
 
+syslog = Syslog.getInstance()
 
 '''
 Return the string corresponding to the oscap result (PASS, FAIL etc.)
 '''
-
-
 def result2str(result):
     if result == oscap.xccdf.XCCDF_RESULT_PASS:
         return "PASS"
@@ -25,3 +25,26 @@ def result2str(result):
         return "INFORMATIONAL"
     elif result == oscap.xccdf.XCCDF_RESULT_FIXED:
         return "FIXED"
+
+def load_xccdf_session(xccdf_path, profile, cpe = None):
+    syslog.log(Syslog.LOG_INFO, "Loading xccdf session {0} ...".format(xccdf_path))
+    xccdf_session=oscap.xccdf.session_new(xccdf_path)
+    if cpe is not None:
+        syslog.log(Syslog.LOG_INFO, "Loading user CPE {0} ...".format(cpe))
+        xccdf_session.set_user_cpe(cpe)
+
+    xccdf_session.load()
+    xccdf_session.load_oval()
+    xccdf_session.load_cpe()
+
+    syslog.log(Syslog.LOG_INFO, "Using profile {0} ...".format(profile))
+    xccdf_session.set_profile_id(profile)
+
+    return xccdf_session
+
+def initial_scan(xccdf_session):
+    res = xccdf_session.evaluate()
+    if not res == 0:
+        syslog.log(Syslog.LOG_WARNING, "Initial scan failed.")
+    else:
+        print("base score : "+str(xccdf_session.get_base_score()))

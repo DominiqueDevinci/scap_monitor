@@ -58,22 +58,10 @@ def bind_text_file_content_54(objects, handler):
 
     fileEvents.start()
 
-def bind_xccdf_profile(xccdf_path, profile, handler, cpe=None):
+def bind_xccdf_profile(_xccdf_session, xccdf_path, profile, handler):
     global xccdf_session
 
-    syslog.log(Syslog.LOG_INFO, "Loading xccdf session {0} ...".format(xccdf_path))
-    xccdf_session=oscap.xccdf.session_new(xccdf_path)
-    if cpe is not None:
-        syslog.log(Syslog.LOG_INFO, "Loading user CPE {0} ...".format(cpe))
-        xccdf_session.set_user_cpe(cpe)
-
-    xccdf_session.load()
-    xccdf_session.load_oval()
-    xccdf_session.load_cpe()
-
-    syslog.log(Syslog.LOG_INFO, "Using profile {0} ...".format(profile))
-    xccdf_session.set_profile_id(profile)
-
+    xccdf_session = _xccdf_session
     objects = fetch_benchmark_profile(xccdf_path, profile)
     bind_text_file_content_54(objects, handler)
 
