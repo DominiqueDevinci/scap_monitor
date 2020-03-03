@@ -51,7 +51,8 @@ def initial_scan(xccdf_session):
         syslog.log(Syslog.LOG_INFO, "Base score for initial scan : {0}".format(xccdf_session.get_base_score()))
         for rs in xccdf_session.get_xccdf_policy().get_results():
             for rr in rs.get_rule_results():
-                cur.execute("INSERT INTO rule_results(rule_name, rule_result, rule_date) VALUES('{0}', '{1}', datetime('now'));"
+                cur.execute("INSERT INTO rule_results(rule_name, rule_result, trigger, rule_date) \
+                VALUES('{0}', '{1}', 0, datetime('now'));"
                             .format(rr.get_idref(), rr.get_result()))
                 syslog.log(Syslog.LOG_DEBUG, "Rule {0} evaluated as {1}"
                     .format(rr.get_idref(), result2str(rr.get_result())))

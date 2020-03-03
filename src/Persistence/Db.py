@@ -24,7 +24,10 @@ class Db:
 
     def init_db(self):
         c = self.con.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS rule_results(id INTEGER PRIMARY KEY, rule_name TEXT, rule_result SMALLINT, rule_date DATETIME);")
+        c.execute("CREATE TABLE IF NOT EXISTS rule_results(id INTEGER PRIMARY KEY, \
+            rule_name TEXT, rule_result SMALLINT, trigger SMALLINT, rule_date DATETIME);")
+        # trigger field: 0 => initial_scan, 1 => triggered by monitor '''
+
         self.con.commit()
 
     def is_results_empty(self):
