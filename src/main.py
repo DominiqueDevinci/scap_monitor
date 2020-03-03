@@ -17,6 +17,8 @@ syslog = Syslog.getInstance()
 desktop = DesktopNotif.getInstance()
 desktop.set_timeout(10000)  # 10 sec timeout for notifs
 
+#time.sleep(20)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbosity", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ALERT'],
         help="Verbosity level, corresponding to syslog priority.", default="INFO")

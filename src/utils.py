@@ -1,7 +1,9 @@
 import openscap_api as oscap
 from Dispatcher.Syslog import Syslog
+from Persistence.Db import Db
 
 syslog = Syslog.getInstance()
+db = Db.getInstance()
 
 '''
 Return the string corresponding to the oscap result (PASS, FAIL etc.)
@@ -34,8 +36,6 @@ def load_xccdf_session(xccdf_path, profile, cpe = None):
         xccdf_session.set_user_cpe(cpe)
 
     xccdf_session.load()
-    xccdf_session.load_oval()
-    xccdf_session.load_cpe()
 
     syslog.log(Syslog.LOG_INFO, "Using profile {0} ...".format(profile))
     xccdf_session.set_profile_id(profile)
@@ -47,4 +47,13 @@ def initial_scan(xccdf_session):
     if not res == 0:
         syslog.log(Syslog.LOG_WARNING, "Initial scan failed.")
     else:
-        print("base score : "+str(xccdf_session.get_base_score()))
+        cur = db.get_cursor()
+        syslog.log(Syslog.LOG_INFO, "Base score for initial scan : {0}".format(xccdf_session.get_base_score()))
+        for rs in xccdf_session.get_xccdf_policy().get_results():
+            for rr in rs.get_rule_results():
+                cur.execute("INSERT INTO rule_results(rule_name, rule_result, rule_date) VALUES('{0}', '{1}', datetime('now'));"
+                            .format(rr.get_idref(), rr.get_result()))
+                syslog.log(Syslog.LOG_DEBUG, "Rule {0} evaluated as {1}"
+                    .format(rr.get_idref(), result2str(rr.get_result())))
+
+        db.commit()

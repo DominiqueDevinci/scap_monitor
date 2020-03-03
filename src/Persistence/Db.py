@@ -24,13 +24,19 @@ class Db:
 
     def init_db(self):
         c = self.con.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS rule_results(id INTEGER PRIMARY KEY, rule_name TEXT, result SMALLINT, date DATETIME);")
+        c.execute("CREATE TABLE IF NOT EXISTS rule_results(id INTEGER PRIMARY KEY, rule_name TEXT, rule_result SMALLINT, rule_date DATETIME);")
         self.con.commit()
 
     def is_results_empty(self):
         c = self.con.cursor()
         nb = c.execute('SELECT COUNT(*) FROM rule_results').fetchone()[0]
         return nb == 0
+
+    def get_cursor(self):
+        return self.con.cursor()
+
+    def commit(self):
+        self.con.commit()
 
     def __del__(self):
         self.con.close()
