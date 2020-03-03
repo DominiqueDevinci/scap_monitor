@@ -1,26 +1,35 @@
+'''
+This is a singleton like class, but an SQLite object can only
+be used in the same thread so it must manage to create on object per thread id
+'''
+
 import sqlite3
+import threading
 from Dispatcher.Syslog import Syslog
 
 syslog = Syslog.getInstance()
 
 # singleton like class
 class Db:
-    __instance = None
+    __instance = {}
 
     @staticmethod
     def getInstance():
-        if Db.__instance == None:
-            Db()
-        return Db.__instance
+        tid=threading.get_ident()
+        if Db.__instance.get(tid) == None:
+            Db(tid)
+        return Db.__instance.get(tid)
 
-    def __init__(self):
+    def __init__(self, tid = None):
+      syslog.log(Syslog.LOG_DEBUG, "db created in thread {0}".format(threading.get_ident()))
+      
       """ Virtually private constructor. """
-      if Db.__instance != None:
+      if tid is None or Db.__instance.get(tid) is not None:
           raise Exception("This is a private constructor, you shouldn't call it directly")
       else:
           self.con = sqlite3.connect('scap_monitor.db')
           self.init_db()  # verify db and init it if needed
-          Db.__instance = self
+          Db.__instance[tid] = self
 
     def init_db(self):
         c = self.con.cursor()

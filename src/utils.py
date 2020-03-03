@@ -1,4 +1,7 @@
 import openscap_api as oscap
+import threading
+import traceback
+
 from Dispatcher.Syslog import Syslog
 from Persistence.Db import Db
 
@@ -28,6 +31,19 @@ def result2str(result):
     elif result == oscap.xccdf.XCCDF_RESULT_FIXED:
         return "FIXED"
 
+# db need to be override when not called by main thread
+def get_previous_rule_results(rule, local_db = db):
+    try:
+        rs = local_db.get_cursor().execute("SELECT rule_result FROM rule_results WHERE rule_name='{0}'\
+                                            ORDER BY rule_date DESC LIMIT 1".format(rule)).fetchone()
+        if rs is None:
+            return -1  # cannot retrieve previous value for this rule
+        else:
+            return rs[0]
+    except Exception as e:
+        print("{0}".format(e))
+        syslog.log(Syslog.LOG_WARNING, "{0}".format(e))
+
 def load_xccdf_session(xccdf_path, profile, cpe = None):
     syslog.log(Syslog.LOG_INFO, "Loading xccdf session {0} ...".format(xccdf_path))
     xccdf_session=oscap.xccdf.session_new(xccdf_path)
@@ -52,8 +68,8 @@ def initial_scan(xccdf_session):
         for rs in xccdf_session.get_xccdf_policy().get_results():
             for rr in rs.get_rule_results():
                 cur.execute("INSERT INTO rule_results(rule_name, rule_result, trigger, rule_date) \
-                VALUES('{0}', '{1}', 0, datetime('now'));"
-                            .format(rr.get_idref(), rr.get_result()))
+                VALUES('{0}', '{1}', 0, datetime('now'));".format(rr.get_idref(), rr.get_result()))
+
                 syslog.log(Syslog.LOG_DEBUG, "Rule {0} evaluated as {1}"
                     .format(rr.get_idref(), result2str(rr.get_result())))
 

@@ -11,7 +11,8 @@ from RuleParser.BindXCCDF import bind_xccdf_profile
 from Dispatcher.Syslog import Syslog
 from Dispatcher.DesktopNotif import DesktopNotif
 from Persistence.Db import Db
-from utils import initial_scan, load_xccdf_session
+from utils import initial_scan, load_xccdf_session, get_previous_rule_results, \
+                  result2str
 
 syslog = Syslog.getInstance()
 desktop = DesktopNotif.getInstance()
@@ -53,6 +54,10 @@ def handler_dpkg(args):
     print("handler")
 
 def handler_xccdf(rule, rs):
+    _db = Db.getInstance()
+    syslog.log(Syslog.LOG_DEBUG, "previous result for {0} is {1}"
+               .format(rule, result2str(get_previous_rule_results(rule, _db))))
+
     if rs == oscap.xccdf.XCCDF_RESULT_PASS:
         syslog.log(syslog.LOG_INFO, "Rule {0} is evaluated as PASSED.".format(rule))
         desktop.send_message("{0}: <i>PASSED</i>.".format(rule))
