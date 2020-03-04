@@ -30,6 +30,9 @@ parser.add_argument("-n", "--desktop-notify", action="store_true",
 parser.add_argument("--dpkg", action="store_true",
                     help="Show desktop notifs with noticeable events .")
 
+parser.add_argument("-c", "--change-only", action="store_true",
+                    help="Notify only when a rule result changes.")
+
 args = parser.parse_args()
 
 
@@ -55,18 +58,25 @@ def handler_dpkg(args):
 
 def handler_xccdf(rule, rs):
     _db = Db.getInstance()
-    syslog.log(Syslog.LOG_DEBUG, "previous result for {0} is {1}"
-               .format(rule, result2str(get_previous_rule_results(rule, _db))))
 
-    if rs == oscap.xccdf.XCCDF_RESULT_PASS:
-        syslog.log(syslog.LOG_INFO, "Rule {0} is evaluated as PASSED.".format(rule))
-        desktop.send_message("{0}: <i>PASSED</i>.".format(rule))
-    elif rs == oscap.xccdf.XCCDF_RESULT_FAIL:
-        syslog.log(syslog.LOG_ALERT, "Rule {0} is evaluated as FAILED !".format(rule))
-        desktop.send_message("{0}: <b>FAILED</b>.".format(rule))
-    else:
-        syslog.log(syslog.LOG_WARNING, "Rule {0} is evaluated as FAILED !".format(rule))
-        desktop.send_message("{0}: cannot be evaluated.".format(rule))
+    prev_rs = get_previous_rule_results(rule, _db)
+    syslog.log(Syslog.LOG_DEBUG, "previous/new result for {0} is {1}/{2}"
+               .format(rule, result2str(prev_rs), result2str(rs)))
+
+    _db.get_cursor().execute("INSERT INTO rule_results(rule_name, rule_result, trigger, rule_date) \
+    VALUES('{0}', '{1}', 0, datetime('now'));".format(rule, rs))
+    _db.commit()
+
+    if not args.change_only or prev_rs != rs:
+        if rs == oscap.xccdf.XCCDF_RESULT_PASS:
+            syslog.log(syslog.LOG_INFO, "{0}: {1} => <i>PASS</i>".format(rule, result2str(prev_rs)))
+            desktop.send_message("{0}: {1} => <i>PASS</i>".format(rule, result2str(prev_rs)))
+        elif rs == oscap.xccdf.XCCDF_RESULT_FAIL:
+            syslog.log(syslog.LOG_ALERT, "{0}: {1} => <b>FAIL</b>".format(rule, result2str(prev_rs)))
+            desktop.send_message("{0}: {1} => <b>FAIL</b>".format(rule, result2str(prev_rs)))
+        else:
+            syslog.log(syslog.LOG_WARNING, "Rule {0} cannot be evaluated.".format(rule))
+            desktop.send_message("{0}: <b>cannot be evaluated</b>.".format(rule))
 
 
 '''
