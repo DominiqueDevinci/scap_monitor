@@ -72,6 +72,7 @@ class DesktopNotif:
 
     def set_timeout(self, timeout):
         self.timeout = timeout
+        self.current_notif.set_timeout(timeout)
 
     # example : dialog-danger
     def set_icon(self, icon):
@@ -89,7 +90,7 @@ class DesktopNotif:
             if msg.expire < current_time:
                 del self.message_queue[i]
                 updated = True
-                
+
         return updated
 
     def send_message(self, message):
